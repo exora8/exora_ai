@@ -1,5 +1,6 @@
-gtts
-together
-pydub
-speechrecognition
-mpg123
+pkg update
+pkg install python
+pkg install ffmpeg
+pkg install termux-api
+pkg install libsndfile
+pip install SpeechRecognition gTTS pydub
