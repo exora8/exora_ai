@@ -1,12 +1,14 @@
 import speech_recognition as sr
-import requests
 from gtts import gTTS
+from pydub import AudioSegment
+from pydub.playback import play
 import os
 import re
+import subprocess
 
-# API Key for Together API
-API_KEY = "4eb3afd18344fdf6c699280f9e5e2f08ba5d4c2cc9989b55e7c5c14910af9706"
-API_URL = "https://api.together.ai/v1/chat/completions"  # Example endpoint (verify the actual URL)
+# Inisialisasi Together AI
+from together import Together
+client = Together(api_key="4eb3afd18344fdf6c699280f9e5e2f08ba5d4c2cc9989b55e7c5c14910af9706")
 
 def clean_text(text):
     """Hapus tag XML/HTML dari output AI"""
@@ -14,21 +16,25 @@ def clean_text(text):
     return clean.strip()
 
 def text_to_speech(text):
-    """Mengubah teks menjadi suara dan langsung diputar menggunakan mpg123"""
+    """Mengubah teks menjadi suara dan langsung diputar"""
     tts = gTTS(text=text, lang="en")  # Ubah ke "en" untuk Bahasa Inggris
     tts.save("response.mp3")
 
-    # Gunakan mpg123 untuk memutar file MP3 di Termux
-    os.system("mpg123 response.mp3")
+    # Putar langsung tanpa delay dengan Termux API
+    subprocess.run(["termux-media-player", "play", "response.mp3"])
 
 def speech_to_text():
     """Mengubah suara menjadi teks"""
     recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        print("🎤 Say something...")
-        recognizer.adjust_for_ambient_noise(source)
-        audio = recognizer.listen(source)
-
+    
+    # Gunakan termux API untuk merekam suara
+    print("🎤 Say something...")
+    subprocess.run(["termux-microphone-record", "-d", "10", "audio.wav"])
+    
+    # Proses file audio
+    with sr.AudioFile("audio.wav") as source:
+        audio = recognizer.record(source)
+    
     try:
         text = recognizer.recognize_google(audio, language="en-US")  # Ubah ke "en-US" untuk Bahasa Inggris
         print(f"📝 You said: {text}")
@@ -47,27 +53,14 @@ def ai_chat(prompt):
 
     # Gabungkan persona dengan input pengguna
     full_prompt = f"{persona} {prompt}"
-
-    # Membuat data untuk dikirim ke API
-    data = {
-        "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",  # Gantilah jika modelnya berbeda
-        "messages": [{"role": "user", "content": full_prompt}],
-    }
     
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    # Kirim permintaan ke API Together
-    response = requests.post(API_URL, json=data, headers=headers)
-
-    if response.status_code == 200:
-        raw_output = response.json()["choices"][0]["message"]["content"]
-        return clean_text(raw_output)  # Bersihkan sebelum dikembalikan
-    else:
-        print(f"❌ Error: {response.status_code}")
-        return "Sorry, I couldn't process that request."
+    response = client.chat.completions.create(
+        model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+        messages=[{"role": "user", "content": full_prompt}],
+    )
+    
+    raw_output = response.choices[0].message.content
+    return clean_text(raw_output)  # Bersihkan sebelum dikembalikan
 
 # Main Loop
 while True:
