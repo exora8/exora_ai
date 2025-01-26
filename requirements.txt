@@ -1,0 +1,5 @@
+gtts
+together
+pydub
+speechrecognition
+mpg123
