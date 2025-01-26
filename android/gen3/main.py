@@ -1,11 +1,12 @@
 import speech_recognition as sr
+import requests
 from gtts import gTTS
 import os
 import re
-from together import Together
 
-# Inisialisasi Together AI
-client = Together(api_key="4eb3afd18344fdf6c699280f9e5e2f08ba5d4c2cc9989b55e7c5c14910af9706")
+# API Key for Together API
+API_KEY = "4eb3afd18344fdf6c699280f9e5e2f08ba5d4c2cc9989b55e7c5c14910af9706"
+API_URL = "https://api.together.ai/v1/chat/completions"  # Example endpoint (verify the actual URL)
 
 def clean_text(text):
     """Hapus tag XML/HTML dari output AI"""
@@ -46,14 +47,27 @@ def ai_chat(prompt):
 
     # Gabungkan persona dengan input pengguna
     full_prompt = f"{persona} {prompt}"
+
+    # Membuat data untuk dikirim ke API
+    data = {
+        "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",  # Gantilah jika modelnya berbeda
+        "messages": [{"role": "user", "content": full_prompt}],
+    }
     
-    response = client.chat.completions.create(
-        model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-        messages=[{"role": "user", "content": full_prompt}],
-    )
-    
-    raw_output = response.choices[0].message.content
-    return clean_text(raw_output)  # Bersihkan sebelum dikembalikan
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    # Kirim permintaan ke API Together
+    response = requests.post(API_URL, json=data, headers=headers)
+
+    if response.status_code == 200:
+        raw_output = response.json()["choices"][0]["message"]["content"]
+        return clean_text(raw_output)  # Bersihkan sebelum dikembalikan
+    else:
+        print(f"❌ Error: {response.status_code}")
+        return "Sorry, I couldn't process that request."
 
 # Main Loop
 while True:
